@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentiment Analysis</title>
+
+<style>
+
+/* BODY */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    background: #f3f4f6;
+    display: flex;
+    justify-content: center;
+}
+
+/* GREEN HERO BACKGROUND */
+body::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 45%;
+    background: linear-gradient(135deg, #16a085, #0f766e);
+    z-index: -1;
+    border-bottom-left-radius: 50% 10%;
+    border-bottom-right-radius: 50% 10%;
+}
+
+/* CONTAINER */
+.container {
+    background: #f9fafb;
+    padding: 2rem;
+    border-radius: 15px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+    width: 520px;
+    margin-top: 120px;
+}
+
+/* TITLE */
+h1 {
+    text-align: center;
+    color: white;
+    margin-top: -90px;
+    margin-bottom: 30px;
+}
+
+/* TEXTAREA */
+textarea {
+    width: 100%;
+    height: 120px;
+    padding: 14px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    resize: none;
+    font-size: 20px;
+    box-sizing: border-box;
+}
+
+/* CHARACTER COUNT */
+#charCount {
+    font-size: 13px;
+    color: #555;
+    text-align: right;
+}
+
+/* BUTTON */
+button {
+    width: 100%;
+    margin-top: 15px;
+    padding: 14px;
+    background: #16a085;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #0f766e;
+}
+
+/* LOADER */
+.loader {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #16a085;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+    display: none;
+}
+
+@keyframes spin {
+    100% { transform: rotate(360deg); }
+}
+
+/* RESULT CARD */
+#result {
+    margin-top: 25px;
+    padding: 20px;
+    border-radius: 12px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    display: none;
+}
+
+/* RESULT COLORS */
+.positive { border-left: 6px solid #22c55e; }
+.negative { border-left: 6px solid #ef4444; }
+.neutral  { border-left: 6px solid #f59e0b; }
+
+/* RESULT LAYOUT */
+.result-section {
+    margin-top: 15px;
+}
+
+.result-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    margin-top: 15px;
+}
+
+.box-group {
+    width: 50%;
+}
+
+.box-group h4 {
+    margin-bottom: 10px;
+}
+
+/* TAG BOXES */
+.tag {
+    display: inline-block;
+    padding: 8px 14px;
+    border-radius: 8px;
+    margin: 5px 5px 0 0;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.tag-positive {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.tag-negative {
+    background: #fee2e2;
+    color: #7f1d1d;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+    <h1>Consumer Sentiment AI</h1>
+
+```
+<textarea id="userInput" placeholder="Type your feedback..."></textarea>
+<p id="charCount">0 / 200 characters</p>
+
+<button onclick="analyzeText()">Analyze Text</button>
+
+<div class="loader" id="loader"></div>
+<div id="result"></div>
+```
+
+</div>
+
+<script>
+
+// CHANGE YOUR API
+const API_URL = "https://eradicate-overlook-singer.ngrok-free.dev/analyze";
+
+// CHARACTER COUNTER
+const textarea = document.getElementById("userInput");
+const charCount = document.getElementById("charCount");
+
+textarea.addEventListener("input", () => {
+    charCount.textContent = `${textarea.value.length} / 200 characters`;
+});
+
+// PLACEHOLDER ANIMATION
+const placeholderTexts = [
+    "I love this product!",
+    "Worst experience ever...",
+    "Amazing service!",
+    "Not happy with quality"
+];
+
+let index = 0;
+setInterval(() => {
+    textarea.placeholder = placeholderTexts[index];
+    index = (index + 1) % placeholderTexts.length;
+}, 2000);
+
+// ANALYZE FUNCTION
+async function analyzeText() {
+    const text = textarea.value;
+    const resultDiv = document.getElementById('result');
+    const loader = document.getElementById('loader');
+    const button = document.querySelector("button");
+
+    if (!text) {
+        alert("Please enter some text first.");
+        return;
+    }
+
+    resultDiv.style.display = 'none';
+    resultDiv.className = '';
+    loader.style.display = 'block';
+    button.disabled = true;
+
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: text })
+        });
+
+        const data = await response.json();
+
+        loader.style.display = 'none';
+        resultDiv.style.display = 'block';
+
+        const sentiment = data.label;
+        const score = (data.score * 100).toFixed(2);
+
+        // SIMPLE WORD ANALYSIS (UI DEMO)
+        const words = text.toLowerCase().split(" ");
+        const positiveWords = ["love","good","great","amazing","best","like"];
+        const negativeWords = ["bad","worst","hate","poor","awful"];
+
+        let happy = [];
+        let unhappy = [];
+
+        words.forEach(word => {
+            if (positiveWords.includes(word)) happy.push(word);
+            if (negativeWords.includes(word)) unhappy.push(word);
+        });
+
+        function createTags(arr, type) {
+            return arr.map(w => {
+                let percent = Math.floor(Math.random() * 40) + 60;
+                return `<span class="tag ${type}">${w} ${percent}%</span>`;
+            }).join("");
+        }
+
+        resultDiv.innerHTML = `
+            <h2>${sentiment} SENTIMENT</h2>
+            <p>${score}% Confidence</p>
+
+            <div class="result-section">
+                <div class="result-row">
+
+                    <div class="box-group">
+                        <h4>Happy about:</h4>
+                        ${createTags(happy, "tag-positive") || "—"}
+                    </div>
+
+                    <div class="box-group">
+                        <h4>Unhappy about:</h4>
+                        ${createTags(unhappy, "tag-negative") || "—"}
+                    </div>
+
+                </div>
+            </div>
+        `;
+
+        if (sentiment === 'POSITIVE') resultDiv.classList.add('positive');
+        else if (sentiment === 'NEGATIVE') resultDiv.classList.add('negative');
+        else resultDiv.classList.add('neutral');
+
+    } catch (error) {
+        loader.style.display = 'none';
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = "⚠️ Server not responding. Restart backend.";
+        resultDiv.classList.add('negative');
+    }
+
+    button.disabled = false;
+}
+
+// ENTER KEY SUPPORT
+textarea.addEventListener("keypress", function(e) {
+    if (e.key === "Enter") {
+        analyzeText();
+    }
+});
+
+</script>
+
+</body>
+</html>
